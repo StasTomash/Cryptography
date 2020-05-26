@@ -1,0 +1,3 @@
+[submodule "BigInteger"]
+	path = BigInteger
+	url = https://github.com/StasTomash/BigInteger.git
