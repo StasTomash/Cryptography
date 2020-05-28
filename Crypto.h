@@ -81,15 +81,18 @@ public:
         return ans;
     }
     static BigInt::BigInteger ProduceHash(const std::string& msg) {
-        long long h = std::hash<std::string>{}(msg) % 100000;
+        int h = ((int)std::hash<std::string>{}(msg));
+        h = abs(h);
         return BigInt::BigInteger(h);
     }
     static BigInt::BigInteger Sign(const std::string& msg, const RSAPrivateKey& key) {
         BigInt::BigInteger h = ProduceHash(msg);
+        std::cout << "Hash in sign " << h << "\n";
         return h.pow(key.d, key.n);
     }
     static bool VerifySignature(const std::string& msg, const RSAPublicKey& key, const BigInt::BigInteger& signature) {
         BigInt::BigInteger h = ProduceHash(msg);
+        std::cout << "Hash in verify " << h << "\n";
         BigInt::BigInteger expected = signature.pow(key.e, key.n);
         return (h == expected);
     }

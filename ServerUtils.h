@@ -31,11 +31,14 @@ public:
         users.insert(info);
         return true;
     }
-    bool isRegistered(int socket) {
+    bool isRegistered(int socket) const {
         return conn.find(socket) != conn.end();
     }
     void addToMessage(int socket, const std::string& addition) {
         openMessages[socket] += addition;
+    }
+    void closeMessage(int socket) {
+        openMessages.erase(socket);
     }
     std::string getMessage(int socket) const { return openMessages.at(socket); }
     PersonInfo getPerson(int socket) const { return conn.at(socket); }
@@ -54,6 +57,7 @@ private:
             } else if (std::isdigit(msg[i])) {
                 curStr += msg[i];
             } else {
+                std::cout << "WHAT\n";
                 return false;
             }
         }
@@ -65,7 +69,6 @@ private:
 public:
     static bool ParseRegistrationMessage(const char* msg, int msgLen, PersonInfo& info) {
         std::string login;
-        std::string key;
         if (!std::isdigit(msg[0]) || (msg[0] - '0') != C_REGISTRATION) {
             return false;
         }
@@ -80,22 +83,22 @@ public:
                     return false;
                 }
             } else {
-                if (std::isdigit(msg[i])) {
-                    key += msg[i];
-                } else {
+                std::vector<BigInt::BigInteger> key;
+                if (!ParseToBigInts(msg+i, msgLen-i, key) || key.size() != 2) {
                     return false;
                 }
+                info = PersonInfo{login, RSAPublicKey{key[1], key[0]}};
+                return true;
             }
         }
-        info = PersonInfo{login, BigInt::BigInteger(key)};
-        return true;
+        return false;
     }
     static bool PreparePublicKeyToSend(std::string& msg, int& messageType, ServerInfo& si) {
-        msg = std::to_string(si.getPublicKey().e.toInt());
+        msg = si.getPublicKey().e.toString() + " " + si.getPublicKey().n.toString();
         messageType = S_DISTRIBUTE_KEY;
         return true;
     }
-    static bool ParseChatMessage(int socket, const char* msg, int msgLen, ServerInfo& si, bool& /* out */ distribute) {
+    static bool ParseChatMessage(int socket, const char* msg, int msgLen, ServerInfo& si, std::string& /* out */ completeMessage) {
         int type = (msg[0] - '0');
         if (type != C_CHAT_MESSAGE_FINISHED && type != C_CHAT_MESSAGE) {
             return false;
@@ -112,10 +115,13 @@ public:
         PersonInfo pi = si.getPerson(socket);
         si.addToMessage(socket, CryptoProcessor::RSADecrypt(codes, si.getPrivateKey()));
         if (type == C_CHAT_MESSAGE_FINISHED) {
-            if (!CryptoProcessor::VerifySignature(si.getMessage(socket), pi.publicKey, signature)) {
+            completeMessage = si.getMessage(socket);
+            si.closeMessage(socket);
+            if (!CryptoProcessor::VerifySignature(completeMessage, pi.publicKey, signature)) {
+                std::cout << "Bad signature " << signature << " for " << completeMessage << "\n";
+                std::cout << "Key used " << pi.publicKey.e << " " << pi.publicKey.n << "\n";
                 return false;
             }
-            distribute = true;
         }
         return true;
     }
@@ -123,6 +129,7 @@ public:
         PersonInfo pi = si.getPerson(socket);
         std::vector<BigInt::BigInteger> codes = CryptoProcessor::RSAEncrypt(text, pi.publicKey);
         std::vector<std::string> words;
+        words.reserve(codes.size());
         for (const auto& code : codes) {
             words.emplace_back(code.toString());
         }
@@ -131,10 +138,10 @@ public:
 
         std::string curStr = login + " " + words[0];
         for (int i = 1; i < words.size(); i++) {
-            if (i % 3 == 0) {
-                msgs.emplace_back(curStr);
-                curStr = login;
-            }
+//            if (i % 5 == 0) {
+//                msgs.emplace_back(curStr);
+//                curStr = login;
+//            }
             curStr += " " + words[i];
         }
         if (curStr != login) {

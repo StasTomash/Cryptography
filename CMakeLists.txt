@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.13)
 project(Crypto)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -8,4 +8,7 @@ add_library(Crypto Crypto.h)
 target_link_libraries(Crypto BigInteger)
 
 add_executable(Server server.cpp CommonUtils.h ServerUtils.h)
-target_link_libraries(Server Crypto ws2_32 wsock32)
+target_link_libraries(Server Crypto)
+
+add_executable(Client client.cpp CommonUtils.h ClientUtils.h)
+target_link_libraries(Client Crypto)

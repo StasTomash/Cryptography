@@ -1,26 +1,34 @@
 #include <vector>
+#include <cstring>
 #include <sys/types.h>
 #include <cstdlib>
-#include <winsock2.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 #include <cstdio>
 #include <cerrno>
-#include <ws2tcpip.h>
-#include <io.h>
+#include <unistd.h>
+#include <thread>
 #include "ServerUtils.h"
 
 #define PORT 8888
 #define MAX_CLIENTS 30
-#define BUFFER_SIZE 1024
-
-#define EMPTY_STMT 0
-#define CHECK(x, err) if ((x) < 0) { perror(err); exit(EXIT_FAILURE); } EMPTY_STMT
+#define BUFFER_SIZE 65535
 
 void Send(const std::string& msg, int type, int socket) {
     char* buff = new char[msg.length() + 2];
-    itoa(type, buff, 10);
+    sprintf(buff, "%d", type);
     strcpy(buff+1, msg.c_str());
     buff[msg.length()+1] = '\0';
+    std::cout << "Sending " << buff << " to " << socket << "\n";
     send(socket, buff, strlen(buff), 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+}
+
+int Receive(int socket, char* buff, int buffSize) {
+    memset(buff, 0, buffSize);
+    int len = recv(socket, buff, buffSize, 0);
+    std::cout << "Received: " << buff << " from " << socket << "\n";
+    return len;
 }
 
 int main(int argc, char** argv) {
@@ -39,10 +47,10 @@ int main(int argc, char** argv) {
     }
     // Allowing master socket to have multiple connections
     //
-//    if (setsockopt(masterSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&optionTrue, sizeof(optionTrue)) < 0) {
-//        perror("Failed to allow multiple connections");
-//        exit(EXIT_FAILURE);
-//    }
+    if (setsockopt(masterSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&optionTrue, sizeof(optionTrue)) < 0) {
+        perror("Failed to allow multiple connections");
+        exit(EXIT_FAILURE);
+    }
 
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
@@ -96,7 +104,7 @@ int main(int argc, char** argv) {
             char buffer[BUFFER_SIZE];
             size_t readBytes;
             if (FD_ISSET(socket, &fdSet)) {
-                if ((readBytes = read(socket, buffer, BUFFER_SIZE)) == 0) {
+                if ((readBytes = Receive(socket, buffer, BUFFER_SIZE)) == 0) {
                     // Empty string means that client disconnected
                     //
                     getpeername(socket, (struct sockaddr*)&address, &addrLen);
@@ -110,48 +118,46 @@ int main(int argc, char** argv) {
                         //
                         PersonInfo personInfo;
                         if (!ServerMessageProcessor::ParseRegistrationMessage(buffer, readBytes, personInfo)) {
-                            Send("Wrong registration format", S_PLANE_TEXT, socket);
+                            Send("Wrong registration format", S_ERROR, socket);
                         } else {
                             serverInfo.registerConnection(socket, personInfo);
+                            Send("", S_CONFIRM, socket);
                         }
                     } else {
                         // Means that client wants to send something to chat
                         //
-                        bool distribute = false;
+                        buffer[readBytes] = '\0';
+                        std::string completeMessage;
                         if (!ServerMessageProcessor::ParseChatMessage(
                                 socket,
                                 buffer,
                                 readBytes,
                                 serverInfo,
-                                distribute
+                                completeMessage
                             )) {
-                            Send("Wrong message format / bad signature", S_PLANE_TEXT, socket);
-                        } else {
-                            if (distribute) {
-                                for (auto otherSocket : clientSockets) {
-                                    if (otherSocket == 0 || otherSocket == socket) {
-                                        continue;
-                                    }
-                                    std::vector<std::string> msgs;
-                                    std::string login = serverInfo.getPerson(socket).login;
-                                    ServerMessageProcessor::PrepareChatMessage(
-                                            otherSocket,
-                                            msgs,
-                                            serverInfo.getMessage(socket),
-                                            serverInfo,
-                                            login
-                                    );
-                                    for (int i = 0; i < msgs.size(); i++) {
-                                        Send(msgs[i], (i == (int)msgs.size()-1 ? S_CHAT_MESSAGE_FINISHED : S_CHAT_MESSAGE), otherSocket);
-                                    }
+                            Send("Wrong message format / bad signature", S_ERROR, socket);
+                        } else if (!completeMessage.empty()) {
+                            for (auto otherSocket : clientSockets) {
+                                if (otherSocket == 0) {
+                                    continue;
                                 }
-
+                                std::vector<std::string> msgs;
+                                std::string login = serverInfo.getPerson(socket).login;
+                                ServerMessageProcessor::PrepareChatMessage(
+                                        otherSocket,
+                                        msgs,
+                                        completeMessage,
+                                        serverInfo,
+                                        login
+                                    );
+                                for (int i = 0; i < msgs.size(); i++) {
+                                    Send(msgs[i], (i == (int)msgs.size()-1 ? S_CHAT_MESSAGE_FINISHED : S_CHAT_MESSAGE), otherSocket);
+                                }
                             }
                         }
                     }
                 }
             }
         }
-        break;
     }
 }
