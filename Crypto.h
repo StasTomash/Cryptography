@@ -7,6 +7,7 @@
 
 #include "BigInteger/BigIntegerAlgorithm.h"
 #include <random>
+#include <algorithm>
 
 struct RSAPrivateKey {
     BigInt::BigInteger n;
