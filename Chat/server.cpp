@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
                         // Only message that server expects now is registration message
                         //
                         PersonInfo personInfo;
-                        if (!ServerMessageProcessor::ParseRegistrationMessage(buffer, readBytes, personInfo)) {
+                        if (!ServerMessageProcessor::ParseRegistrationMessage(buffer, readBytes, personInfo, serverInfo)) {
                             Send("Wrong registration format", S_ERROR, socket);
                         } else {
                             serverInfo.registerConnection(socket, personInfo);

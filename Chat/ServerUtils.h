@@ -22,11 +22,7 @@ public:
         return true;
     }
     bool registerConnection(int socket, const PersonInfo& info) {
-        if (users.find(info) != users.end()) {
-            if (!(users.find(info) -> publicKey == info.publicKey)) {
-                return false;
-            }
-        }
+
         conn[socket] = info;
         users.insert(info);
         return true;
@@ -39,6 +35,14 @@ public:
     }
     void closeMessage(int socket) {
         openMessages.erase(socket);
+    }
+    bool checkRegistration(const PersonInfo& info) const {
+        if (users.find(info) != users.end()) {
+            if (!(users.find(info) -> publicKey == info.publicKey)) {
+                return false;
+            }
+        }
+        return true;
     }
     std::string getMessage(int socket) const { return openMessages.at(socket); }
     PersonInfo getPerson(int socket) const { return conn.at(socket); }
@@ -67,7 +71,7 @@ private:
         return true;
     }
 public:
-    static bool ParseRegistrationMessage(const char* msg, int msgLen, PersonInfo& info) {
+    static bool ParseRegistrationMessage(const char* msg, int msgLen, PersonInfo& info, const ServerInfo& si) {
         std::string login;
         if (!std::isdigit(msg[0]) || (msg[0] - '0') != C_REGISTRATION) {
             return false;
@@ -88,7 +92,7 @@ public:
                     return false;
                 }
                 info = PersonInfo{login, RSAPublicKey{key[1], key[0]}};
-                return true;
+                return si.checkRegistration(info);
             }
         }
         return false;

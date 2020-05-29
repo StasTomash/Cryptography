@@ -28,7 +28,7 @@ struct RSAKeyPair {
 
 class CryptoProcessor {
 private:
-    static const size_t KEY_LEN = 64;
+    static const size_t KEY_LEN = 80;
     static const int DIVERSITY = 8;
     static const int DEFAULT_E = 65537;
 
@@ -40,11 +40,34 @@ private:
             }
         }
     }
-    static BigInt::BigInteger RSAEncryptInternal(char msg, const RSAPublicKey& key) {
-        return BigInt::BigInteger(msg).pow(key.e, key.n);
+    static BigInt::BigInteger RSAEncryptInternal(size_t msg, const RSAPublicKey& key) {
+        return BigInt::BigInteger(std::to_string(msg)).pow(key.e, key.n);
     }
-    static char RSADecryptInternal(const BigInt::BigInteger& msg, const RSAPrivateKey& key) {
-        return char(msg.pow(key.d, key.n).toInt());
+    static std::string RSADecryptInternal(const BigInt::BigInteger& msg, const RSAPrivateKey& key) {
+        size_t decr = msg.pow(key.d, key.n).toInt();
+        std::string ans;
+        while (decr) {
+            ans += char(decr % 256);
+            decr /= 256;
+        }
+        std::reverse(ans.begin(), ans.end());
+        return ans;
+    }
+    static std::vector<size_t> SplitMsg(const std::string& msg) {
+        std::vector<size_t> ans;
+        size_t cur = 0;
+        for (int i = 0; i < msg.size(); i++) {
+            if (i && (i % 4 == 0)) {
+                ans.push_back(cur);
+                cur = 0;
+            }
+            cur *= 256;
+            cur += msg[i];
+        }
+        if (cur) {
+            ans.push_back(cur);
+        }
+        return ans;
     }
 public:
     static RSAKeyPair RSAGenKeyPair(int _e = DEFAULT_E) {
@@ -64,19 +87,18 @@ public:
     }
     static std::vector<BigInt::BigInteger> RSAEncrypt(const std::string& msg, const RSAPublicKey& key) {
         size_t msgLen = msg.length();
+        std::vector<size_t> batches = SplitMsg(msg);
         std::vector<BigInt::BigInteger> ans;
-        ans.reserve(msgLen);
-        for (int i = 0; i < msgLen; i++) {
-            ans.emplace_back(RSAEncryptInternal(msg[i], key));
+        for (auto batch : batches) {
+            ans.push_back(RSAEncryptInternal(batch, key));
         }
         return ans;
     }
     static std::string RSADecrypt(const std::vector<BigInt::BigInteger>& msg, const RSAPrivateKey& key) {
         size_t msgLen = msg.size();
         std::string ans;
-        ans.reserve(msgLen);
         for (int i = 0; i < msgLen; i++) {
-            ans.push_back(RSADecryptInternal(msg[i], key));
+            ans += RSADecryptInternal(msg[i], key);
         }
         return ans;
     }
