@@ -87,12 +87,10 @@ public:
     }
     static BigInt::BigInteger Sign(const std::string& msg, const RSAPrivateKey& key) {
         BigInt::BigInteger h = ProduceHash(msg);
-        std::cout << "Hash in sign " << h << "\n";
         return h.pow(key.d, key.n);
     }
     static bool VerifySignature(const std::string& msg, const RSAPublicKey& key, const BigInt::BigInteger& signature) {
         BigInt::BigInteger h = ProduceHash(msg);
-        std::cout << "Hash in verify " << h << "\n";
         BigInt::BigInteger expected = signature.pow(key.e, key.n);
         return (h == expected);
     }
