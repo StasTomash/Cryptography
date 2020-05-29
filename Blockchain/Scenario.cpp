@@ -10,7 +10,7 @@ int main() {
     RSAKeyPair rootKeys = CryptoProcessor::RSAGenKeyPair();
     User root("root", rootKeys.publicKey);
 
-    Blockchain blockchain(root, 100, rootKeys.privateKey);
+    Blockchain blockchain(root, rootKeys.privateKey);
 
     RSAKeyPair keys[3];
     for (auto & key : keys) {
