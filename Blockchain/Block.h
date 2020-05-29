@@ -30,7 +30,7 @@ private:
 
 public:
     Block() = default;
-    void AddTransaction(Transaction transaction) {
+    void AddTransaction(const Transaction& transaction) {
         transactions.push_back(transaction);
     }
     Block(const std::vector<Transaction>& _transactions, int _id, const std::string& _prevHash) {
@@ -38,20 +38,27 @@ public:
         id = _id,
         prevHash = _prevHash;
     }
-    std::vector<Transaction> GetTransactions() { return transactions; }
+    std::vector<const Transaction*> GetTransactions() const {
+        std::vector<const Transaction*> ans;
+        for (const auto &transaction : transactions) {
+            ans.push_back(&transaction);
+        }
+        return ans;
+    }
+    size_t GetID() { return id; }
     std::vector<std::string> GetHashes() {
         std::vector<std::string> hashes;
-        for (auto transaction : transactions) {
+        for (const auto& transaction : transactions) {
             hashes.push_back(transaction.GetHash());
         }
         return hashes;
     }
-    std::string GetRootHash() {
+    std::string GetRootHash() const {
         assert (finalized);
         return tree.GetRootHash();
     }
-    std::string GetPrevHash() { return prevHash; }
-    bool isFinalized() { return finalized; }
+    std::string GetPrevHash() const { return prevHash; }
+    bool isFinalized() const { return finalized; }
     void Finalize() {
         std::vector<std::string> hashes = GetHashes();
         tree = MerkleTree(hashes);
@@ -68,6 +75,9 @@ public:
             nonce++;
         }
         finalized = true;
+    }
+    bool CheckProof() {
+        return hash == sha256(tree.GetRootHash() + prevHash + std::to_string(nonce));
     }
     explicit Block(const JSON& json) : Block() {
         std::vector<JSON> transactionJSONs = json.at("transactions").get<std::vector<JSON>>();
