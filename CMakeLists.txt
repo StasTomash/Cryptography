@@ -7,8 +7,14 @@ add_subdirectory(BigInteger)
 add_library(Crypto Crypto.h)
 target_link_libraries(Crypto BigInteger)
 
-add_executable(Server server.cpp CommonUtils.h ServerUtils.h)
+add_library(Blockchain Blockchain/Blockchain.h Blockchain/ext/json.h Blockchain/Block.h Blockchain/MerkleTree.h Blockchain/Transaction.h Blockchain/ext/sha256.h Blockchain/ext/sha256.cpp)
+target_link_libraries(Blockchain Crypto)
+
+add_executable(BlockchainProcessor Blockchain/main.cpp)
+target_link_libraries(BlockchainProcessor Blockchain)
+
+add_executable(Server Chat/server.cpp Chat/CommonUtils.h Chat/ServerUtils.h)
 target_link_libraries(Server Crypto)
 
-add_executable(Client client.cpp CommonUtils.h ClientUtils.h)
+add_executable(Client Chat/client.cpp Chat/CommonUtils.h Chat/ClientUtils.h)
 target_link_libraries(Client Crypto)

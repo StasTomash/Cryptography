@@ -5,7 +5,7 @@
 #ifndef CRYPTO_CLIENTUTILS_H
 #define CRYPTO_CLIENTUTILS_H
 
-#include "Crypto.h"
+#include "../Crypto.h"
 #include "CommonUtils.h"
 #include <string>
 #include <map>

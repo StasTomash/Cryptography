@@ -1,7 +1,7 @@
 #ifndef CRYPTO_SERVERUTILS_H
 #define CRYPTO_SERVERUTILS_H
 
-#include "Crypto.h"
+#include "../Crypto.h"
 #include "CommonUtils.h"
 #include <string>
 #include <map>
